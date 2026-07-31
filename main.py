@@ -1,9 +1,9 @@
 """نقطه ورود ربات BARCOOD VPN — اتصال همه هندلرها و اجرای ربات."""
 
-import asyncio
 import logging
 import re
 
+from telegram.error import InvalidToken
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -84,27 +84,41 @@ def build_app() -> Application:
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, photo_router))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
 
+    # آماده‌سازی دیتابیس داخل حلقه رویداد خود ربات (قبل از شروع polling)
+    async def _post_init(application: Application) -> None:
+        await bootstrap()
+
+    app.post_init = _post_init
     return app
 
 
 async def bootstrap() -> None:
-    """آماده‌سازی دیتابیس قبل از اجرا."""
+    """آماده‌سازی دیتابیس قبل از اجرا (ساخت جداول + پلن‌های نمونه)."""
     await init_db()
     await seed_default_plans()
 
 
 def main() -> None:
-    if not config.BOT_TOKEN:
+    if not config.BOT_TOKEN or not re.fullmatch(r"\d{5,}:[\w-]{30,}", config.BOT_TOKEN):
         raise SystemExit(
-            "❌ متغیر محیطی BOT_TOKEN تنظیم نشده است.\n"
-            "فایل .env را بر اساس .env.example بسازید و توکن ربات را وارد کنید."
+            "❌ متغیر BOT_TOKEN در فایل .env تنظیم نشده یا معتبر نیست.\n"
+            "   ۱) از @BotFather توکن بگیرید (شکل: 123456789:AAAA...)\n"
+            "   ۲) در فایل .env مقدار BOT_TOKEN را با آن جایگزین کنید."
         )
-
-    asyncio.run(bootstrap())
+    if not config.ADMIN_IDS:
+        logger.warning(
+            "⚠️ ADMIN_IDS تنظیم نشده است! پنل مدیریت برای هیچ‌کس فعال نمی‌شود.\n"
+            "   آیدی عددی خود را از @userinfotoolsbot بگیرید و در .env قرار دهید."
+        )
 
     app = build_app()
     logger.info("🤖 BARCOOD VPN Bot started… (admins: %s)", config.ADMIN_IDS or "—")
-    app.run_polling(allowed_updates=["message", "callback_query"])
+    try:
+        app.run_polling(allowed_updates=["message", "callback_query"])
+    except InvalidToken:
+        raise SystemExit(
+            "❌ توکن ربات نامعتبر است. توکن صحیح را از @BotFather بگیرید و در .env قرار دهید."
+        ) from None
 
 
 if __name__ == "__main__":
