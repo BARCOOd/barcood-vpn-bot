@@ -36,7 +36,11 @@ def _btn(button_text: str, handler) -> MessageHandler:
 
 
 def build_app() -> Application:
-    app = Application.builder().token(config.BOT_TOKEN).build()
+    builder = Application.builder().token(config.BOT_TOKEN)
+    if config.PROXY_URL:
+        # برای شبکه‌هایی که api.telegram.org را مسدود کرده‌اند
+        builder = builder.proxy(config.PROXY_URL).get_updates_proxy(config.PROXY_URL)
+    app = builder.build()
 
     # ---------------- دستورها ----------------
     app.add_handler(CommandHandler("start", user.start))

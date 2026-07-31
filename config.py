@@ -32,6 +32,10 @@ CARD_HOLDER = os.getenv("CARD_HOLDER", "—").strip()
 # مسیر فایل دیتابیس SQLite
 DB_PATH = os.getenv("DB_PATH", "barcood.db")
 
+# پروکسی برای شبکه‌هایی که تلگرام را مسدود کرده‌اند (اختیاری)
+# مثال: socks5://127.0.0.1:1080 یا http://127.0.0.1:8080
+PROXY_URL = os.getenv("PROXY_URL", "").strip() or None
+
 # هدیه معرف به ازای اولین خرید زیرمجموعه (تومان)
 REFERRAL_BONUS = int(os.getenv("REFERRAL_BONUS", "20000"))
 
