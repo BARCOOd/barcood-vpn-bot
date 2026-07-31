@@ -1,20 +1,111 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-import os
+"""نقطه ورود ربات BARCOOD VPN — اتصال همه هندلرها و اجرای ربات."""
 
-TOKEN = os.getenv("BOT_TOKEN")
+import asyncio
+import logging
+import re
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 به ربات BARCOOD VPN خوش آمدید.\n\n"
-        "ربات در حال راه‌اندازی است و به‌زودی امکانات کامل فعال می‌شود."
-    )
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    print("Bot Started...")
-    app.run_polling()
+import config
+import handlers_admin as admin
+import handlers_shop as shop
+import handlers_support as support
+import handlers_user as user
+import keyboards as kb
+from database import init_db, seed_default_plans
+from handlers_router import photo_router, text_router
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
+
+def _btn(button_text: str, handler) -> MessageHandler:
+    """هندلر دکمه‌های کیبورد (مطابقت دقیق متن دکمه)."""
+    return MessageHandler(filters.Regex(f"^{re.escape(button_text)}$"), handler)
+
+
+def build_app() -> Application:
+    app = Application.builder().token(config.BOT_TOKEN).build()
+
+    # ---------------- دستورها ----------------
+    app.add_handler(CommandHandler("start", user.start))
+    app.add_handler(CommandHandler("cancel", user.cancel))
+    app.add_handler(CommandHandler("admin", admin.admin_panel))
+
+    # ---------------- منوی کاربر ----------------
+    app.add_handler(_btn(kb.BTN_BUY, shop.buy_menu))
+    app.add_handler(_btn(kb.BTN_MY_SERVICES, shop.my_services))
+    app.add_handler(_btn(kb.BTN_WALLET, user.wallet))
+    app.add_handler(_btn(kb.BTN_REFERRAL, user.referral))
+    app.add_handler(_btn(kb.BTN_SUPPORT, support.support_start))
+    app.add_handler(_btn(kb.BTN_HELP, user.help_))
+    app.add_handler(_btn(kb.BTN_ADMIN, admin.admin_panel))
+
+    # ---------------- منوی مدیریت ----------------
+    app.add_handler(_btn(kb.A_STATS, admin.stats))
+    app.add_handler(_btn(kb.A_PENDING_ORDERS, admin.pending_orders))
+    app.add_handler(_btn(kb.A_ADD_PLAN, admin.add_plan_start))
+    app.add_handler(_btn(kb.A_PLANS, admin.plans_manage))
+    app.add_handler(_btn(kb.A_CHARGES, admin.pending_charges))
+    app.add_handler(_btn(kb.A_BALANCE, admin.balance_start))
+    app.add_handler(_btn(kb.A_BROADCAST, admin.broadcast_start))
+    app.add_handler(_btn(kb.A_BACK, user.home))
+
+    # ---------------- دکمه‌های شیشه‌ای (کاربر) ----------------
+    app.add_handler(CallbackQueryHandler(shop.plan_details, pattern=r"^plan_\d+$"))
+    app.add_handler(CallbackQueryHandler(shop.back_plans, pattern=r"^back_plans$"))
+    app.add_handler(CallbackQueryHandler(shop.buy_confirm, pattern=r"^buy_\d+$"))
+    app.add_handler(CallbackQueryHandler(user.charge_start, pattern=r"^charge_wallet$"))
+
+    # ---------------- دکمه‌های شیشه‌ای (ادمین) ----------------
+    app.add_handler(CallbackQueryHandler(admin.order_ok, pattern=r"^order_ok_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.order_no, pattern=r"^order_no_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.charge_ok, pattern=r"^chg_ok_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.charge_no, pattern=r"^chg_no_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.plan_toggle, pattern=r"^plan_toggle_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.plan_delete, pattern=r"^plan_del_\d+$"))
+    app.add_handler(CallbackQueryHandler(admin.plan_save, pattern=r"^plan_save$"))
+    app.add_handler(CallbackQueryHandler(admin.plan_cancel, pattern=r"^plan_cancel$"))
+    app.add_handler(CallbackQueryHandler(admin.broadcast_send, pattern=r"^bc_send$"))
+    app.add_handler(CallbackQueryHandler(admin.broadcast_cancel, pattern=r"^bc_cancel$"))
+    app.add_handler(CallbackQueryHandler(support.admin_support_reply, pattern=r"^sup_reply_\d+$"))
+
+    # ---------------- مسیریاب ورودی‌ها (آخرین‌ها) ----------------
+    app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, photo_router))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
+
+    return app
+
+
+async def bootstrap() -> None:
+    """آماده‌سازی دیتابیس قبل از اجرا."""
+    await init_db()
+    await seed_default_plans()
+
+
+def main() -> None:
+    if not config.BOT_TOKEN:
+        raise SystemExit(
+            "❌ متغیر محیطی BOT_TOKEN تنظیم نشده است.\n"
+            "فایل .env را بر اساس .env.example بسازید و توکن ربات را وارد کنید."
+        )
+
+    asyncio.run(bootstrap())
+
+    app = build_app()
+    logger.info("🤖 BARCOOD VPN Bot started… (admins: %s)", config.ADMIN_IDS or "—")
+    app.run_polling(allowed_updates=["message", "callback_query"])
+
 
 if __name__ == "__main__":
     main()
