@@ -7,10 +7,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
-import config
 import database as db
 import keyboards as kb
-from utils import clear_state, fmt, parse_int, user_mention
+from utils import clear_state, fmt, is_admin, parse_int, user_mention
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ def admin_only(func):
 
     @functools.wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.effective_user.id not in config.ADMIN_IDS:
+        if not is_admin(update.effective_user):
             return
         return await func(update, context)
 
@@ -106,7 +105,7 @@ async def order_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def order_config_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """دریافت کانفیگ از ادمین و تحویل به کاربر."""
-    if update.effective_user.id not in config.ADMIN_IDS:
+    if not is_admin(update.effective_user):
         return
     expect = context.user_data.get("expect", "")
     order_id = int(expect.split(":")[1])
@@ -341,7 +340,7 @@ async def add_plan_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def plan_step_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """پردازش مراحل افزودن پلن. مقدار True یعنی پیام مصرف شد."""
-    if update.effective_user.id not in config.ADMIN_IDS:
+    if not is_admin(update.effective_user):
         return False
     expect = context.user_data.get("expect", "")
     draft = context.user_data.setdefault("plan_draft", {})
@@ -438,7 +437,7 @@ async def balance_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def balance_step_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """پردازش مراحل تغییر موجودی. مقدار True یعنی پیام مصرف شد."""
-    if update.effective_user.id not in config.ADMIN_IDS:
+    if not is_admin(update.effective_user):
         return False
     expect = context.user_data.get("expect", "")
 
@@ -503,7 +502,7 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def broadcast_text_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if update.effective_user.id not in config.ADMIN_IDS:
+    if not is_admin(update.effective_user):
         return False
     context.user_data["bc_draft"] = {"text": update.message.text}
     context.user_data["expect"] = None
@@ -516,7 +515,7 @@ async def broadcast_text_received(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def broadcast_photo_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if update.effective_user.id not in config.ADMIN_IDS:
+    if not is_admin(update.effective_user):
         return False
     photo = update.message.photo[-1]
     caption = update.message.caption or ""

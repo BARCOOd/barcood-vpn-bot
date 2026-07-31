@@ -9,7 +9,7 @@ import config
 import database as db
 import keyboards as kb
 import texts
-from utils import clear_state, fmt, user_mention
+from utils import admin_notify_ids, clear_state, fmt, user_mention
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ async def buy_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         f"📦 پلن: {plan['name']}\n"
         f"💵 مبلغ: {fmt(price)}"
     )
-    for admin_id in config.ADMIN_IDS:
+    for admin_id in admin_notify_ids():
         try:
             await context.bot.send_message(
                 admin_id, admin_text, reply_markup=kb.order_review(order_id)

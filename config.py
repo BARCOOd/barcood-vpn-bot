@@ -16,6 +16,15 @@ ADMIN_IDS = {
     if x.strip().isdigit()
 }
 
+# یوزرنیم ادمین‌ها (بدون @)، جدا شده با کاما → ADMIN_USERNAMES=SuportAdminQr,otheradmin
+# جایگزین ADMIN_IDS برای وقتی که آیدی عددی نمی‌دانید؛
+# با اولین پیام این کاربران به ربات، به‌صورت خودکار ادمین می‌شوند.
+ADMIN_USERNAMES = {
+    x.strip().lstrip("@").lower()
+    for x in os.getenv("ADMIN_USERNAMES", "").split(",")
+    if x.strip()
+}
+
 # اطلاعات کارت برای شارژ کارت‌به‌کارت
 CARD_NUMBER = os.getenv("CARD_NUMBER", "—").strip()
 CARD_HOLDER = os.getenv("CARD_HOLDER", "—").strip()

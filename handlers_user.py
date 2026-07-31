@@ -9,7 +9,7 @@ import config
 import database as db
 import keyboards as kb
 import texts
-from utils import clear_state, fmt, parse_int, user_mention
+from utils import admin_notify_ids, clear_state, fmt, is_admin, parse_int, user_mention
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(
         texts.WELCOME.format(name=user.first_name or "کاربر"),
-        reply_markup=kb.main_menu(user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(user)),
     )
 
 
@@ -50,7 +50,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     clear_state(context)
     await update.message.reply_text(
         "❌ عملیات لغو شد.",
-        reply_markup=kb.main_menu(update.effective_user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(update.effective_user)),
     )
 
 
@@ -59,7 +59,7 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     clear_state(context)
     await update.message.reply_text(
         "🏠 منوی اصلی:",
-        reply_markup=kb.main_menu(update.effective_user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(update.effective_user)),
     )
 
 
@@ -132,7 +132,7 @@ async def charge_receipt_received(update: Update, context: ContextTypes.DEFAULT_
         f"🧾 شماره درخواست: {req_id}\n"
         f"💵 مبلغ: {fmt(amount)}\n\n"
         "نتیجه از طریق همین ربات به شما اطلاع‌رسانی می‌شود 🙏",
-        reply_markup=kb.main_menu(user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(user)),
     )
 
     caption = (
@@ -141,7 +141,7 @@ async def charge_receipt_received(update: Update, context: ContextTypes.DEFAULT_
         f"🆔 آیدی عددی: {user.id}\n"
         f"💵 مبلغ: {fmt(amount)}"
     )
-    for admin_id in config.ADMIN_IDS:
+    for admin_id in admin_notify_ids():
         try:
             await context.bot.send_photo(
                 admin_id, photo.file_id, caption=caption, reply_markup=kb.charge_review(req_id)

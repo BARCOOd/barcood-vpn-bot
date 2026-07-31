@@ -1,9 +1,35 @@
 """توابع کمکی مشترک بین هندلرها."""
 
+import config
+
 # ارقام فارسی و عربی → انگلیسی
 _FA = "۰۱۲۳۴۵۶۷۸۹"
 _AR = "٠١٢٣٤٥٦٧٨٩"
 _TRANS = str.maketrans(_FA + _AR, "0123456789" * 2)
+
+# آیدی‌های عددی ادمین‌هایی که از طریق یوزرنیم شناسایی شدند (در حافظه)
+_resolved_admin_ids: set[int] = set()
+
+
+def is_admin(tg_user) -> bool:
+    """بررسی ادمین بودن بر اساس آیدی عددی یا یوزرنیم."""
+    if tg_user is None:
+        return False
+    if tg_user.id in config.ADMIN_IDS:
+        return True
+    username = (tg_user.username or "").lower()
+    return bool(username) and username in config.ADMIN_USERNAMES
+
+
+def track_admin(tg_user) -> None:
+    """اگر کاربر ادمین است، آیدی عددی‌اش را برای ارسال اعلان ذخیره می‌کند."""
+    if is_admin(tg_user):
+        _resolved_admin_ids.add(tg_user.id)
+
+
+def admin_notify_ids() -> set[int]:
+    """آیدی عددی همه ادمین‌های شناخته‌شده (برای ارسال اعلان)."""
+    return config.ADMIN_IDS | _resolved_admin_ids
 
 
 def parse_int(text: str, allow_negative: bool = False):

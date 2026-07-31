@@ -5,11 +5,10 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-import config
 import database as db
 import keyboards as kb
 import texts
-from utils import clear_state
+from utils import admin_notify_ids, clear_state, is_admin
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ async def _forward_to_admins(context: ContextTypes.DEFAULT_TYPE, user, payload: 
         f"{' (@' + user.username + ')' if user.username else ''}\n"
         f"🆔 آیدی عددی: {user.id}\n\n"
     )
-    for admin_id in config.ADMIN_IDS:
+    for admin_id in admin_notify_ids():
         try:
             if payload.get("photo"):
                 await context.bot.send_photo(
@@ -57,7 +56,7 @@ async def support_message_received(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text(
         "✅ پیام شما برای تیم پشتیبانی ارسال شد.\n"
         "به محض بررسی، پاسخ از همین‌جا برایتان ارسال می‌شود 🙏",
-        reply_markup=kb.main_menu(user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(user)),
     )
 
 
@@ -75,7 +74,7 @@ async def support_photo_received(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(
         "✅ پیام شما برای تیم پشتیبانی ارسال شد.\n"
         "به محض بررسی، پاسخ از همین‌جا برایتان ارسال می‌شود 🙏",
-        reply_markup=kb.main_menu(user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(user)),
     )
 
 
@@ -85,7 +84,7 @@ async def admin_support_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
     """کلیک ادمین روی «✉️ پاسخ به کاربر»."""
     query = update.callback_query
     await query.answer()
-    if query.from_user.id not in config.ADMIN_IDS:
+    if not is_admin(query.from_user):
         return
     target_id = int(query.data.split("_")[2])
     context.user_data["expect"] = f"support_reply:{target_id}"

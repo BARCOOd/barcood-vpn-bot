@@ -5,11 +5,11 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-import config
 import handlers_admin as admin
 import handlers_support as support
 import handlers_user as user
 import keyboards as kb
+from utils import is_admin
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not expect:
         await update.message.reply_text(
             "🤖 لطفاً از دکمه‌های منوی پایین استفاده کنید:",
-            reply_markup=kb.main_menu(update.effective_user.id in config.ADMIN_IDS),
+            reply_markup=kb.main_menu(is_admin(update.effective_user)),
         )
         return
 
@@ -64,7 +64,7 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     context.user_data["expect"] = None
     await update.message.reply_text(
         "⚠️ خطایی رخ داد؛ به ابتدای گفتگو برگشتیم.",
-        reply_markup=kb.main_menu(update.effective_user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(update.effective_user)),
     )
 
 
@@ -89,5 +89,5 @@ async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await update.message.reply_text(
         "🤖 لطفاً از دکمه‌های منوی پایین استفاده کنید:",
-        reply_markup=kb.main_menu(update.effective_user.id in config.ADMIN_IDS),
+        reply_markup=kb.main_menu(is_admin(update.effective_user)),
     )

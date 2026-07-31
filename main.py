@@ -20,6 +20,7 @@ import handlers_user as user
 import keyboards as kb
 from database import init_db, seed_default_plans
 from handlers_router import photo_router, text_router
+from utils import track_admin
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -80,6 +81,13 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(admin.broadcast_cancel, pattern=r"^bc_cancel$"))
     app.add_handler(CallbackQueryHandler(support.admin_support_reply, pattern=r"^sup_reply_\d+$"))
 
+    # ---------------- ردیابی خودکار ادمین‌ها (یوزرنیم → آیدی عددی) ----------------
+    async def _track(update, context) -> None:
+        if update.effective_user:
+            track_admin(update.effective_user)
+
+    app.add_handler(MessageHandler(filters.ALL, _track), group=-1)
+
     # ---------------- مسیریاب ورودی‌ها (آخرین‌ها) ----------------
     app.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, photo_router))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
@@ -105,14 +113,18 @@ def main() -> None:
             "   ۱) از @BotFather توکن بگیرید (شکل: 123456789:AAAA...)\n"
             "   ۲) در فایل .env مقدار BOT_TOKEN را با آن جایگزین کنید."
         )
-    if not config.ADMIN_IDS:
+    if not config.ADMIN_IDS and not config.ADMIN_USERNAMES:
         logger.warning(
-            "⚠️ ADMIN_IDS تنظیم نشده است! پنل مدیریت برای هیچ‌کس فعال نمی‌شود.\n"
-            "   آیدی عددی خود را از @userinfotoolsbot بگیرید و در .env قرار دهید."
+            "⚠️ هیچ ادمینی تنظیم نشده است! پنل مدیریت برای هیچ‌کس فعال نمی‌شود.\n"
+            "   ADMIN_IDS (آیدی عددی) یا ADMIN_USERNAMES (یوزرنیم) را در .env قرار دهید."
         )
 
     app = build_app()
-    logger.info("🤖 BARCOOD VPN Bot started… (admins: %s)", config.ADMIN_IDS or "—")
+    logger.info(
+        "🤖 BARCOOD VPN Bot started… (admin ids: %s | admin usernames: %s)",
+        config.ADMIN_IDS or "—",
+        {f"@{u}" for u in config.ADMIN_USERNAMES} or "—",
+    )
     try:
         app.run_polling(allowed_updates=["message", "callback_query"])
     except InvalidToken:
